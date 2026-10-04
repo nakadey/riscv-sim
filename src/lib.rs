@@ -1,14 +1,11 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+pub mod cpu;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// The base integer type for the RISC-V architecture.
+///
+/// Currently `u32` for RV32I.
+pub type Xlen = u32;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+/// The memory address type for the RISC-V architecture.
+///
+/// Currently `u32` for RV32I.
+pub type Address = u32;
