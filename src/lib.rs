@@ -1,4 +1,6 @@
 pub mod cpu;
+pub mod memory;
+pub mod trap;
 
 /// The base integer type for the RISC-V architecture.
 ///
