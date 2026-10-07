@@ -1,6 +1,7 @@
 pub mod cpu;
 pub mod loader;
 pub mod memory;
+pub mod simulator;
 pub mod trap;
 
 /// The base integer type for the RISC-V architecture.

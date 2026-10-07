@@ -50,6 +50,14 @@ impl Cpu {
             regs: Registers::new(),
         }
     }
+
+    pub fn pc(&self) -> Address {
+        self.pc
+    }
+
+    pub fn set_pc(&mut self, pc: Address) {
+        self.pc = pc;
+    }
 }
 
 #[cfg(test)]
