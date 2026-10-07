@@ -54,6 +54,43 @@ impl Memory {
         self.data[start..start + 4].copy_from_slice(&value.to_le_bytes());
         Ok(())
     }
+
+    /// Reads a sequence of bytes from memory without requiring alignment.
+    ///
+    /// # Errors
+    ///
+    /// - Returns `LoadAccessFault` if the access is outside the memory region.
+    pub fn read_bytes(&self, addr: Address, len: usize) -> Result<&[u8], Trap> {
+        let start = addr as usize;
+
+        if start
+            .checked_add(len)
+            .is_none_or(|end| end > self.data.len())
+        {
+            return Err(Trap::Exception(Exception::LoadAccessFault));
+        }
+
+        Ok(&self.data[start..start + len])
+    }
+
+    /// Writes a sequence of bytes to memory without requiring alignment.
+    ///
+    /// # Errors
+    ///
+    /// - Returns `StoreAccessFault` if the access is outside the memory region.
+    pub fn write_bytes(&mut self, addr: Address, value: &[u8]) -> Result<(), Trap> {
+        let start = addr as usize;
+
+        if start
+            .checked_add(value.len())
+            .is_none_or(|end| end > self.data.len())
+        {
+            return Err(Trap::Exception(Exception::StoreAccessFault));
+        }
+
+        self.data[start..start + value.len()].copy_from_slice(value);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -99,6 +136,31 @@ mod tests {
         let mut mem = Memory::new(4);
         assert_eq!(
             mem.write_u32(4, 0x1234_5678),
+            Err(Trap::Exception(Exception::StoreAccessFault))
+        );
+    }
+
+    #[test]
+    fn read_bytes_returns_written_bytes() {
+        let mut mem = Memory::new(4);
+        mem.write_bytes(0, &[0x78, 0x56, 0x34, 0x12]).unwrap();
+        assert_eq!(mem.read_bytes(0, 4), Ok(&[0x78, 0x56, 0x34, 0x12][..]));
+    }
+
+    #[test]
+    fn read_bytes_traps_out_of_bounds_access() {
+        let mem = Memory::new(4);
+        assert_eq!(
+            mem.read_bytes(2, 4),
+            Err(Trap::Exception(Exception::LoadAccessFault))
+        );
+    }
+
+    #[test]
+    fn write_bytes_traps_out_of_bounds_access() {
+        let mut mem = Memory::new(4);
+        assert_eq!(
+            mem.write_bytes(2, &[0x78, 0x56, 0x34, 0x12]),
             Err(Trap::Exception(Exception::StoreAccessFault))
         );
     }
