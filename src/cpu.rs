@@ -1,3 +1,6 @@
+pub mod decoder;
+pub mod instruction;
+
 use crate::{Address, Xlen};
 
 /// RISC-V general-purpose registers (x0 - x31).

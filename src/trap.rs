@@ -8,6 +8,7 @@ pub enum Trap {
 /// RISC-V synchronous exceptions.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Exception {
+    IllegalInstruction,
     LoadAddressMisaligned,
     LoadAccessFault,
     StoreAddressMisaligned,
