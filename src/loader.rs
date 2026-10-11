@@ -7,7 +7,7 @@ use crate::memory::Memory;
 /// A loader for binary files into memory.
 pub struct BinaryLoader;
 
-/// Loads a binary file into `memory` starting at address 0.
+/// Loads a binary file into `memory` starting at its base address.
 ///
 /// The binary must fit entirely within the provided memory region.
 ///
@@ -25,8 +25,9 @@ impl BinaryLoader {
 
         // TODO: Preserve memory traps separately from file I/O errors when
         // a dedicated loader error type is introduced.
+        let addr = memory.base_addr();
         memory
-            .write_bytes(0, &data)
+            .write_bytes(addr, &data)
             .map_err(|_| io::Error::other("Memory access fault"))?;
 
         Ok(())
@@ -42,15 +43,16 @@ mod tests {
 
     #[test]
     fn load_binary_into_memory() {
-        let mut memory = Memory::new(4);
+        let base = 0x8000_0000;
+        let mut memory = Memory::new(base, 4);
         BinaryLoader::load(&Path::new("tests/fixtures/bin/test.bin"), &mut memory).unwrap();
 
-        assert_eq!(memory.read_u32(0), Ok(0x1234_5678));
+        assert_eq!(memory.read_u32(base), Ok(0x1234_5678));
     }
 
     #[test]
     fn load_fails_when_binary_exceeds_memory() {
-        let mut memory = Memory::new(2);
+        let mut memory = Memory::new(0, 2);
         let result = BinaryLoader::load(&Path::new("tests/fixtures/bin/test.bin"), &mut memory);
 
         assert!(result.is_err());

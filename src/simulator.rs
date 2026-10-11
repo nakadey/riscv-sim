@@ -1,6 +1,7 @@
 use std::io;
 use std::path::Path;
 
+use crate::Address;
 use crate::cpu::Cpu;
 use crate::cpu::decoder;
 use crate::loader::BinaryLoader;
@@ -15,10 +16,18 @@ pub struct Simulator {
 }
 
 impl Simulator {
-    pub fn new(memory_size: usize) -> Self {
+    /// Creates a new `Simulator` configured with the given memory base
+    /// address and size.
+    ///
+    /// # Notes
+    ///
+    /// The entry point of the `Cpu` is currently set to `memory_base`.
+    /// In the future, this will be updated to automatically load and set the
+    /// entry point from an ELF file.
+    pub fn new(memory_base: Address, memory_size: usize) -> Self {
         Self {
-            cpu: Cpu::new(),
-            memory: Memory::new(memory_size),
+            cpu: Cpu::new(memory_base),
+            memory: Memory::new(memory_base, memory_size),
         }
     }
 
@@ -58,27 +67,31 @@ mod tests {
 
     #[test]
     fn load_binary_into_memory() {
-        let mut simulator = Simulator::new(4);
+        let base = 0x8000_0000;
+        let mut simulator = Simulator::new(base, 4);
         simulator
             .load_binary(&Path::new("tests/fixtures/bin/test.bin"))
             .unwrap();
 
-        assert_eq!(simulator.memory.read_u32(0), Ok(0x1234_5678));
+        assert_eq!(simulator.memory.read_u32(base), Ok(0x1234_5678));
     }
 
     #[test]
     fn step_executes_addi_instruction() {
-        let mut sim = Simulator::new(4);
-        sim.memory.write_u32(0, 0x00a0_0093).unwrap(); // addi x1, x0, 10
+        let base = 0x8000_0000;
+        let mut sim = Simulator::new(base, 4);
+        sim.memory.write_u32(base, 0x00a0_0093).unwrap(); // addi x1, x0, 10
+
+        assert_eq!(sim.cpu.pc(), base);
         sim.step().unwrap();
 
         assert_eq!(sim.cpu.read_reg(1), 10);
-        assert_eq!(sim.cpu.pc(), 4);
+        assert_eq!(sim.cpu.pc(), base + 4);
     }
 
     #[test]
     fn step_traps_misaligned_fetch() {
-        let mut sim = Simulator::new(8);
+        let mut sim = Simulator::new(0, 8);
         sim.cpu.set_pc(2); // Misaligned address
 
         assert_eq!(
@@ -90,7 +103,7 @@ mod tests {
 
     #[test]
     fn step_traps_out_of_bounds_fetch() {
-        let mut sim = Simulator::new(4);
+        let mut sim = Simulator::new(0, 4);
         sim.cpu.set_pc(4); // Out of bounds address
 
         assert_eq!(
@@ -102,7 +115,7 @@ mod tests {
 
     #[test]
     fn step_traps_illegal_instruction() {
-        let mut sim = Simulator::new(4);
+        let mut sim = Simulator::new(0, 4);
         sim.memory.write_u32(0, 0).unwrap();
 
         assert_eq!(

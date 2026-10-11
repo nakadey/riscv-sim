@@ -49,9 +49,10 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new() -> Self {
+    /// Creates a new `Cpu` with the program counter (PC) set to `entry_point`.
+    pub fn new(entry_point: Address) -> Self {
         Self {
-            pc: 0,
+            pc: entry_point,
             regs: Registers::new(),
         }
     }
@@ -112,8 +113,14 @@ mod tests {
     }
 
     #[test]
+    fn cpu_starts_at_entry_point() {
+        let cpu = Cpu::new(0x8000_0000);
+        assert_eq!(cpu.pc(), 0x8000_0000);
+    }
+
+    #[test]
     fn execute_addi_updates_register_and_pc() {
-        let mut cpu = Cpu::new();
+        let mut cpu = Cpu::new(0);
         cpu.regs.write(1, 5);
 
         cpu.execute(Instruction::Addi {
@@ -129,7 +136,7 @@ mod tests {
 
     #[test]
     fn execute_addi_does_not_change_x0() {
-        let mut cpu = Cpu::new();
+        let mut cpu = Cpu::new(0);
 
         cpu.execute(Instruction::Addi {
             rd: 0,
@@ -143,7 +150,7 @@ mod tests {
 
     #[test]
     fn execute_addi_wraps_on_overflow() {
-        let mut cpu = Cpu::new();
+        let mut cpu = Cpu::new(0);
         cpu.regs.write(1, u32::MAX);
 
         cpu.execute(Instruction::Addi {
@@ -158,7 +165,7 @@ mod tests {
 
     #[test]
     fn execute_addi_handles_negative_immediate() {
-        let mut cpu = Cpu::new();
+        let mut cpu = Cpu::new(0);
         cpu.regs.write(1, 10);
 
         cpu.execute(Instruction::Addi {
