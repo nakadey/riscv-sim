@@ -15,6 +15,7 @@ pub enum Exception {
     LoadAccessFault,
     StoreAddressMisaligned,
     StoreAccessFault,
+    EnvironmentCall,
 }
 
 /// RISC-V asynchronous interrupts.

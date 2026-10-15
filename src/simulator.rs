@@ -9,6 +9,18 @@ use crate::memory;
 use crate::memory::Memory;
 use crate::trap::{Exception, Trap};
 
+/// The outcome of running a program in the simulator.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RunOutcome {
+    /// The program executed successfully and reached an `ecall` instruction.
+    Exited(u32),
+    /// The program executed successfully but did not reach an `ecall`
+    /// instruction within the given number of steps.
+    MaxStepsExceeded,
+    /// The program encountered a trap during execution.
+    Trapped(Trap),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Simulator {
     cpu: Cpu,
@@ -58,6 +70,29 @@ impl Simulator {
         self.cpu.execute(inst)?;
 
         Ok(())
+    }
+
+    /// Runs the simulator for a maximum number of steps.
+    ///
+    /// # Returns
+    ///
+    /// - `RunOutcome::Exited(a0)` - If the program executes an `ecall`
+    ///   instruction. Returns with the value of register `a0`.
+    /// - `RunOutcome::MaxStepsExceeded` - If the program exceeds the maximum
+    ///   number of steps.
+    /// - `RunOutcome::Trapped(trap)` - If a trap occurs during execution.
+    ///   Returns with the corresponding `Trap`.
+    pub fn run(&mut self, max_steps: usize) -> RunOutcome {
+        for _ in 0..max_steps {
+            match self.step() {
+                Ok(()) => {}
+                Err(Trap::Exception(Exception::EnvironmentCall)) => {
+                    return RunOutcome::Exited(self.cpu.read_reg(10));
+                }
+                Err(trap) => return RunOutcome::Trapped(trap),
+            }
+        }
+        RunOutcome::MaxStepsExceeded
     }
 }
 
@@ -123,5 +158,24 @@ mod tests {
             Err(Trap::Exception(Exception::IllegalInstruction))
         );
         assert_eq!(sim.cpu.pc(), 0);
+    }
+
+    #[test]
+    fn run_exits_on_ecall() {
+        let base = 0x8000_0000;
+        let mut sim = Simulator::new(base, 4);
+        sim.memory.write_u32(base, 0x0000_0073).unwrap(); // ecall
+        sim.cpu.write_reg(10, 42);
+
+        assert_eq!(sim.run(1), RunOutcome::Exited(42));
+    }
+
+    #[test]
+    fn run_stops_when_max_steps_exceeded() {
+        let base = 0x8000_0000;
+        let mut sim = Simulator::new(base, 4);
+        sim.memory.write_u32(base, 0x0000_0013).unwrap(); // nop
+
+        assert_eq!(sim.run(1), RunOutcome::MaxStepsExceeded);
     }
 }

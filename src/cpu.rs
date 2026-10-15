@@ -2,7 +2,7 @@ pub mod decoder;
 pub mod instruction;
 
 use self::instruction::Instruction;
-use crate::trap::Trap;
+use crate::trap::{Exception, Trap};
 use crate::{Address, Xlen};
 
 /// RISC-V general-purpose registers (x0 - x31).
@@ -87,6 +87,20 @@ impl Cpu {
                 let result = self.regs.read(rs1).wrapping_add(imm);
                 self.regs.write(rd, result);
                 self.pc = self.pc.wrapping_add(4);
+            }
+            Instruction::Bne { rs1, rs2, imm } => {
+                self.pc = if self.regs.read(rs1) != self.regs.read(rs2) {
+                    self.pc.wrapping_add(imm)
+                } else {
+                    self.pc.wrapping_add(4)
+                };
+            }
+            Instruction::Lui { rd, imm } => {
+                self.regs.write(rd, imm);
+                self.pc = self.pc.wrapping_add(4);
+            }
+            Instruction::Ecall => {
+                return Err(Trap::Exception(Exception::EnvironmentCall));
             }
         }
         Ok(())
@@ -176,5 +190,37 @@ mod tests {
         .unwrap();
 
         assert_eq!(cpu.regs.read(2), 5);
+    }
+
+    #[test]
+    fn execute_bne_jumps_to_correct_pc() {
+        let mut cpu = Cpu::new(0);
+        cpu.regs.write(1, 0);
+        cpu.regs.write(2, 5);
+
+        cpu.execute(Instruction::Bne {
+            rs1: 0,
+            rs2: 1,
+            imm: 4,
+        })
+        .unwrap();
+        assert_eq!(cpu.pc(), 4);
+
+        cpu.execute(Instruction::Bne {
+            rs1: 1,
+            rs2: 2,
+            imm: -4i32 as u32,
+        })
+        .unwrap();
+        assert_eq!(cpu.pc(), 0);
+    }
+
+    #[test]
+    fn execute_ecall_traps_environment_call() {
+        let mut cpu = Cpu::new(0);
+        assert_eq!(
+            cpu.execute(Instruction::Ecall),
+            Err(Trap::Exception(Exception::EnvironmentCall))
+        );
     }
 }
